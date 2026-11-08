@@ -1199,16 +1199,30 @@ window.addEventListener('message',event=>{
   if(url.origin!==location.origin||url.pathname!==location.pathname||currentMaterialPath(url.searchParams.get('file'))!==raw||url.searchParams.get('v')!==params.get('v'))return;
   pendingNavigation=url;void applyNavigation();
 });
-back.onclick=async()=>{
-  if(!await window.nsuFlushAnnotations())return;
-  const position=persistReaderPosition();
-  if(window.parent!==window){
-    window.parent.postMessage({type:'nsu-close-pdf',file:position.file,page:position.page},location.origin);
-    return;
-  }
-  if(history.length>1)history.back();
-  else location.href=READER.backUrl(subject);
-};
+// Hyle's unified search embeds the reader from hyle.space (cross-origin).
+// Keep PDF notes safe before returning to its search results.
+const TRUSTED_READER_PARENTS=new Set([location.origin,'https://hyle.space']);
+let closingFromSearch=false;
+async function closeReader(parentOrigin=''){
+  if(closingFromSearch)return;
+  closingFromSearch=true;
+  try{
+    if(!await window.nsuFlushAnnotations())return;
+    const position=persistReaderPosition();
+    if(window.parent!==window){
+      const target=TRUSTED_READER_PARENTS.has(parentOrigin)?parentOrigin:'https://hyle.space';
+      window.parent.postMessage({type:'nsu-close-pdf',file:position.file,page:position.page},target);
+      return;
+    }
+    if(history.length>1)history.back();
+    else location.href=READER.backUrl(subject);
+  }finally{closingFromSearch=false}
+}
+back.onclick=()=>closeReader();
+window.addEventListener('message',event=>{
+  if(event.source!==window.parent||!TRUSTED_READER_PARENTS.has(event.origin))return;
+  if(event.data?.type==='hyle-reader-request-close')void closeReader(event.origin);
+});
 outlineToggle.onclick=()=>outlinePanel.classList.contains('open')?closeOutline():void openOutline();outlineClose.onclick=closeOutline;outlineBackdrop.onclick=closeOutline;
 prev.onclick=()=>go(-1);next.onclick=()=>go(1);mPrev.onclick=()=>go(-1);mNext.onclick=()=>go(1);mPageInfo.onclick=()=>pageJump.classList.contains('open')?closePageJump():openPageJump();pageJumpClose.onclick=closePageJump;pageJumpForm.addEventListener('submit',e=>{e.preventDefault();jumpToPage()});document.addEventListener('pointerdown',e=>{if(!pageJump.classList.contains('open'))return;if(pageJump.contains(e.target)||mPageInfo.contains(e.target))return;closePageJump()});
 pageInput.onchange=()=>{if(!pdf)return;pageNum=validPage(pageInput.value,pageNum);savePage();if(continuousMode)scrollToContinuousPage(pageNum);else renderPage()};
