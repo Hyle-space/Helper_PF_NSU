@@ -332,11 +332,14 @@ function init() {
     if (!key) { d.messages.pop(); lastFailed = question; persist(); renderDialog(); return; }
     const controller = new AbortController(); abort = controller;
     const scope = scopeNow();
+    // The active Helper folder disambiguates duplicate textbooks without
+    // restricting the AI's normal cross-site search to that folder.
+    const readerContext = window.HelperScope?.() || {};
     try {
       const response = await fetch(API + '/ask', {
         method: 'POST', signal: controller.signal,
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
-        body: JSON.stringify({ q: question, history, ...(scope.site ? { site: scope.site } : {}), ...(scope.semester ? { semester: scope.semester } : {}), ...(scope.subject ? { subject: scope.subject } : {}) }),
+        body: JSON.stringify({ q: question, history, ...(scope.site ? { site: scope.site } : {}), ...(scope.semester ? { semester: scope.semester } : {}), ...(scope.subject ? { subject: scope.subject } : {}), context_site: 'helper', ...(readerContext.semester ? { context_semester: readerContext.semester } : {}), ...(readerContext.subject ? { context_subject: readerContext.subject } : {}) }),
       });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
