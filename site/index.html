@@ -27,5 +27,14 @@
     <div id="results-list" aria-live="polite"></div>
     <footer>Литература физического факультета НГУ</footer>
   </main>
+<script>
+// Install Hyle's shared offline shell even when a subsite is opened directly.
+// Its worker only caches application assets; books and API remain on the network.
+if (location.hostname === 'hyle.space' && 'serviceWorker' in navigator) {
+  addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' }).catch(() => {});
+  }, { once: true });
+}
+</script>
 </body>
 </html>
